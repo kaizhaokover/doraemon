@@ -8,7 +8,9 @@
         <outputRelativeToContentRoot value="true" />
         <module name="doraemon-core" />
         <module name="doraemon-module-collector" />
+        <module name="doraemon-module-common" />
         <module name="doraemon-module-exhibition" />
+        <module name="doraemon-module-message" />
         <module name="doraemon-module-processor" />
       </profile>
     </annotationProcessing>
