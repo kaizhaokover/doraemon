@@ -16,7 +16,6 @@
         <module>doraemon-core</module>
         <module>doraemon-install</module>
         <module>doraemon-manager</module>
-        <module>doraemon-manager-frontend</module>
     </modules>
 
 
