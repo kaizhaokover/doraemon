@@ -98,7 +98,7 @@ fi
 echo ''
 echo 'Check install package dependency !'
 echo ''
-checkOS_ISORes $osFilePrefix $osVersion
+checkOperatingSystemISOFileExists $osFilePrefix $osVersion
 if [ $? != 0 ]
 then
   echo 'Check OS ISO file failed!!'
@@ -111,7 +111,7 @@ echo ''
 echo 'Check ambari HDP HDP-UTIL'
 echo ''
 
-checkRes centos$osVersion
+checkAmbariInstallPackageExists centos$osVersion
 if [ $? != 0 ]
 then
   echo 'Check ambari HDP HDP-UTIL failed'
@@ -122,7 +122,7 @@ echo 'Check ambari HDP HDP-UTIL success'
 echo ''
 
 
-echoLineSeparator 1 '检测依赖通过，准备挂载系统iso镜像文件，安装expect 和httpd '
+consoleLog '检测依赖通过，准备挂载系统iso镜像文件，安装expect 和httpd '
 
 mount_iso_file=`ls $currDir/res/${os_file_prefix}-$osVersion*.iso` 
 if [ -e /mnt/cdrom -a -d /mnt/cdrom ]
@@ -185,7 +185,7 @@ then
    fi
  fi
  
-echoLineSeparator 1 '挂载镜像成功，准备配置当前节点yum源'
+consoleLog '挂载镜像成功，准备配置当前节点yum源'
 
 echo '移除 /etc/yum.repos.d文件夹下的所有repo文件'
 rm -f /etc/yum.repos.d/*.repo
@@ -207,7 +207,7 @@ then
 fi
 
  
-   echoLineSeparator 1 '检测是否安装expect，如果没安装则自动安装'
+   consoleLog '检测是否安装expect，如果没安装则自动安装'
    expDep=`rpm -qa|grep expect`
    if [ "" == "$expDep" ] ;then
      echo 'Dependency Check ,current host has not installed [expect]'
@@ -217,7 +217,7 @@ fi
        exit 1
      fi
    fi
-   echoLineSeparator 1 '检测是否安装http ,如果没有安装则自动安装'
+   consoleLog '检测是否安装http ,如果没有安装则自动安装'
    httpdDep=`rpm -qa|grep -v 'httpd-tools' |grep httpd`
     if [ "" == "$httpdDep" ] ;then
      echo 'Dependency Check ,current host has not installed [httpd]'
@@ -228,9 +228,9 @@ fi
      fi
      chkconfig httpd on    
    fi
-   echoLineSeparator 1 'EveryThing is ready !!'
+   consoleLog 'EveryThing is ready !!'
  
-   echoLineSeparator 1 '在/var/www/html中创建资源文件夹'
+   consoleLog '在/var/www/html中创建资源文件夹'
   
    httpHome=/var/www/html
    subDirArray=('cdrom' 'ambari' 'hdp' 'hdp-utils')
@@ -275,7 +275,7 @@ fi
     service httpd restart
     chkconfig httpd on
 #打印一行分隔符
-echoLineSeparator 1 '开始进行hostname配置，请不要手动打断！'
+consoleLog '开始进行hostname配置，请不要手动打断！'
 #所有的节点ip
 total_ips=`awk '{print $1}' $ip_file`
 #当前所在节点ip
@@ -302,8 +302,8 @@ allHostNames=`awk '{print $2}' $ip_file`
 #配置所有节点的hostname
     for i in $total_ips
     do 
-       tmpHs=`getHostNameByIP $ip_file $i`
-       psw=`getRootPSWByIP $ip_file $i`
+       tmpHs=`getHostNameByIP $i`
+       psw=`getRootPasswordByIP $i`
        if [ $tmpHs == "" ]
        then
          echo "can not set empty hostname to $i"
@@ -326,12 +326,12 @@ allHostNames=`awk '{print $2}' $ip_file`
       
     done    
 #打印一行分隔符
-echoLineSeparator 1 '完成hostname配置，即将进行下一步！'
-echoLineSeparator 1 '修改每个节点系统内核参数'
+consoleLog '完成hostname配置，即将进行下一步！'
+consoleLog '修改每个节点系统内核参数'
 for i in $total_ips
 do
   #修改内核参数
-    psw=`getRootPSWByIP $ip_file $i`
+    psw=`getRootPasswordByIP $i`
     if [ "6" == "$osVersion" ]
        then
          	 	   
@@ -355,7 +355,7 @@ for i in $other_ips
 do
   if [ "$mip" != "$i" ] ;then
     echo "ssh $i 'sysctl -p'"
-    psw=`getRootPSWByIP $ip_file $i`
+    psw=`getRootPasswordByIP $i`
     $currDir/expect_ssh.exp root $i  "sysctl -p"  $psw
           
   fi
@@ -367,19 +367,19 @@ echoLineSeparartor 1 '完成第一阶段的配置'
 
 
 #打印一行分隔符
-echoLineSeparator 1 '开始进行hostname配置，请不要手动打断！'
+consoleLog '开始进行hostname配置，请不要手动打断！'
 
-echoLineSeparator 1 '开始配置节点之间root用户免密登录,请不要手动打断！'
+consoleLog '开始配置节点之间root用户免密登录,请不要手动打断！'
    #遍历节点，在每个节点执行ssh-keygen命令
    for i in $total_ips
    do
-       psw=`getRootPSWByIP $ip_file $i`
+       psw=`getRootPasswordByIP $i`
        $currDir/expect_ssh.exp root $i  'ssh-keygen -t rsa -P "" -f /root/.ssh/id_rsa' $psw  
    done
    #将其他节点的id_rsa.pub文件copy到当前节点
    for i in $other_ips
    do
-       psw=`getRootPSWByIP $ip_file $i`
+       psw=`getRootPasswordByIP $i`
      $currDir/expect_scp_from_remote.exp root $i $psw  /root/.ssh/id_rsa.pub /root/.ssh/id_scp$i  
    done
    #在当前节点构建/root/.ssh/authorized_key 文件
@@ -387,7 +387,7 @@ echoLineSeparator 1 '开始配置节点之间root用户免密登录,请不要手
    #发送authorized_key到每个节点下
       for i in $other_ips
       do
-        psw=`getRootPSWByIP $ip_file $i`
+        psw=`getRootPasswordByIP $i`
         $currDir/expect_scp_to_remote.exp root $i $psw /root/.ssh/authorized_keys /root/.ssh/
       done
    #修改/root/.ssh 文件夹权限
@@ -397,9 +397,9 @@ echoLineSeparator 1 '开始配置节点之间root用户免密登录,请不要手
    done
 
 
-echoLineSeparator 1 '完成各个节点之间root用户的免密登录，即将进行下一步！'
+consoleLog '完成各个节点之间root用户的免密登录，即将进行下一步！'
 
-echoLineSeparator 1 '开始配置每个节点的hosts文件'
+consoleLog '开始配置每个节点的hosts文件'
 for i in $total_ips
 do
    for j in `sed '/^$/d' $ip_file | awk '{printf("%s\47%s\n",$1,$2)}'`
@@ -413,8 +413,8 @@ do
    ssh $i 'cat /etc/hosts'
    echo "**************************"
 done
-echoLineSeparator 1 '完成配置每个节点的hosts文件'
-echoLineSeparator 1 '测试节点之间免密登录'
+consoleLog '完成配置每个节点的hosts文件'
+consoleLog '测试节点之间免密登录'
 for i in $allHostNames
 do
     echo "ssh $i"
@@ -422,10 +422,10 @@ do
 done
 
 
-echoLineSeparator 1 '准备关闭防火墙'
+consoleLog '准备关闭防火墙'
 for i in $total_ips
 do
-       psw=`getRootPSWByIP $ip_file $i`
+       psw=`getRootPasswordByIP $i`
        if [ "6" == "$osVersion" ]
        then
           $currDir/expect_ssh.exp root $i  "service iptables stop  && chkconfig iptables off"  $psw
@@ -496,7 +496,7 @@ do
 done
 
 
-distributeFilesToNodes $mineRepo $mineRepo
+distributeFilesToOtherNodes $mineRepo $mineRepo
 executeCommandOnEachNode 'yum clean all && yum repolist'
 echo "加载所有的GPG-KEY"
 executeCommandOnEachNode "rpm --import http://$currHostName/cdrom/$cdromGpgkeyFileName"
@@ -504,7 +504,7 @@ executeCommandOnEachNode "rpm --import http://$currHostName/hdp/HDP/centos$osVer
 executeCommandOnEachNode "rpm --import http://$currHostName/hdp-utils/RPM-GPG-KEY/RPM-GPG-KEY-Jenkins"
 executeCommandOnEachNode "rpm --import http://$currHostName/$ambari_dir/RPM-GPG-KEY/RPM-GPG-KEY-Jenkins"
 
-echoLineSeparator 1 '配置Ntp时间同步服务'
+consoleLog '配置Ntp时间同步服务'
 sed -i "s/server n.*/server $currHostName/g" $currDir/conf/slave-ntp.conf
 for i in $allHostNames
 do
@@ -526,20 +526,20 @@ done
 executeCommandOnEachNode 'chkconfig ntpd on && service ntpd restart'
 
 
-echoLineSeparator 1  '安装自带JDK'
+consoleLog  '安装自带JDK'
 executeCommandOnEachNode "rpm -qa|grep java |awk '{print \"rpm -e --nodeps \"\$0}' |sh"
 jdkF=`ls $currDir/res/jdk*.rpm |awk -F / 'END{print $NF}'`
 echo '当前节点安装JDK'
 rpm -ivh $currDir/res/$jdkF
-distributeFilesToNodes  $currDir/res/$jdkF /root
+distributeFilesToOtherNodes  $currDir/res/$jdkF /root
 executeCommandOnOtherNodes "rpm -ivh /root/$jdkF"
 
 if [ $osVersion == 7 ] ;then
-   echoLineSeparator 1 'CentOS 7 需要卸载冲突的依赖snappy包'
+   consoleLog 'CentOS 7 需要卸载冲突的依赖snappy包'
    executeCommandOnEachNode 'yum remove -y snappy-1.1.0-3.el7.x86_64'
    executeCommandOnEachNode 'yum install -y snappy-1.0.5-1.el6.x86_64'
 fi
-echoLineSeparator 1 '完成自动配置，请手动依次完成以下操作！'
+consoleLog '完成自动配置，请手动依次完成以下操作！'
 echo "yum install -y ambari-server"
 echo "ambari-server setup"
 #创建hive元数据库，并修改postgresql数据库访问权限

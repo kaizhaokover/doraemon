@@ -54,7 +54,7 @@ fi
 
 
 #打印一行分隔符
-echoLineSeparator 1 '开始进行hostname配置，请不要手动打断！'
+consoleLog '开始进行hostname配置，请不要手动打断！'
 #所有的节点ip
 total_ips=`awk '{print $1}' $ip_file`
 #当前所在节点ip
@@ -64,17 +64,17 @@ other_ips=`grep -v $mip ${ip_file} |awk '{print $1}' `
 
 allHostNames=`awk '{print $2}' $ip_file`
 
-echoLineSeparator 1 '开始配置节点之间root用户免密登录,请不要手动打断！'
+consoleLog '开始配置节点之间root用户免密登录,请不要手动打断！'
    #遍历节点，在每个节点执行ssh-keygen命令
    for i in $total_ips
    do
-       psw=`getRootPSWByIP $ip_file $i`
+       psw=`getRootPasswordByIP $i`
        $currDir/expect_ssh.exp root $i  'ssh-keygen -t rsa -P "" -f /root/.ssh/id_rsa' $psw  
    done
    #将其他节点的id_rsa.pub文件copy到当前节点
    for i in $other_ips
    do
-       psw=`getRootPSWByIP $ip_file $i`
+       psw=`getRootPasswordByIP $i`
      $currDir/expect_scp_from_remote.exp root $i $psw  /root/.ssh/id_rsa.pub /root/.ssh/id_scp$i  
    done
    #在当前节点构建/root/.ssh/authorized_key 文件
@@ -82,7 +82,7 @@ echoLineSeparator 1 '开始配置节点之间root用户免密登录,请不要手
    #发送authorized_key到每个节点下
       for i in $other_ips
       do
-        psw=`getRootPSWByIP $ip_file $i`
+        psw=`getRootPasswordByIP $i`
         $currDir/expect_scp_to_remote.exp root $i $psw /root/.ssh/authorized_keys /root/.ssh/
       done
    #修改/root/.ssh 文件夹权限
@@ -92,9 +92,9 @@ echoLineSeparator 1 '开始配置节点之间root用户免密登录,请不要手
    done
 
 
-echoLineSeparator 1 '完成各个节点之间root用户的免密登录，即将进行下一步！'
+consoleLog '完成各个节点之间root用户的免密登录，即将进行下一步！'
 
-echoLineSeparator 1 '开始配置每个节点的hosts文件'
+consoleLog '开始配置每个节点的hosts文件'
 keyword=`head -1 $currDir/hostname-keyword`
 if [ $? != 0 ];then
   echo 'find ./hostname-keyword file error!'
@@ -111,8 +111,8 @@ if [ $hsNR == 0 ] ;then
 else
   echo  "need to clear /etc/hosts file, delete line contains '${keyword}'"
 fi
-echoLineSeparator 1 '完成配置每个节点的hosts文件'
-echoLineSeparator 1 '测试节点之间免密登录'
+consoleLog '完成配置每个节点的hosts文件'
+consoleLog '测试节点之间免密登录'
 for i in $allHostNames
 do
     echo "ssh $i"
@@ -120,10 +120,10 @@ do
 done
 
 
-echoLineSeparator 1 '准备关闭防火墙'
+consoleLog '准备关闭防火墙'
 for i in $total_ips
 do
-       psw=`getRootPSWByIP $ip_file $i`
+       psw=`getRootPasswordByIP $i`
        if [ "6" == "$os" ]
        then
           $currDir/expect_ssh.exp root $i  "service iptables stop  && chkconfig iptables off"  $psw
@@ -163,14 +163,14 @@ do
 done
 
 
-distributeFilesToNodes $mineRepo $mineRepo
+distributeFilesToOtherNodes $mineRepo $mineRepo
 executeCommandOnEachNode 'yum clean all && yum list > /root/yum-list-log.txt 2>&1'
 #加载GPG-KEY
 
 echo "加载所有的GPG-KEY"
 executeCommandOnEachNode "rpm --import http://$currHostName/cdrom/RPM-GPG-KEY-CentOS-$os"
 
-echoLineSeparator 1 '配置Ntp时间同步服务'
+consoleLog '配置Ntp时间同步服务'
 sed -i "s/server n.*/server $currHostName/g" $currDir/conf/slave-ntp.conf
 for i in $allHostNames
 do
@@ -192,19 +192,19 @@ done
 executeCommandOnEachNode 'chkconfig ntpd on && service ntpd restart'
 
 
-echoLineSeparator 1  '安装自带JDK'
+consoleLog  '安装自带JDK'
 executeCommandOnEachNode "rpm -qa|grep java |awk '{print \"rpm -e --nodeps \"\$0}' |sh"
 jdkF=`ls $currDir/res/jdk*.rpm |awk -F / 'END{print $NF}'`
 echo '当前节点安装JDK'
 rpm -ivh $currDir/res/$jdkF
-distributeFilesToNodes  $currDir/res/$jdkF /root
+distributeFilesToOtherNodes  $currDir/res/$jdkF /root
 executeCommandOnOtherNodes "rpm -ivh /root/$jdkF"
 if [ $os == 7 ] ;then
-   echoLineSeparator 1 'CentOS 7 需要卸载冲突的依赖snappy包'
+   consoleLog 'CentOS 7 需要卸载冲突的依赖snappy包'
    executeCommandOnEachNode 'yum remove -y snappy-1.1.0-3.el7.x86_64'
    executeCommandOnEachNode 'yum install -y snappy-1.0.5-1.el6.x86_64'
 fi
-echoLineSeparator 1 '完成自动配置，请手动依次完成以下操作！'
+consoleLog '完成自动配置，请手动依次完成以下操作！'
 
 endTime=`date +%s`
 

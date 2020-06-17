@@ -68,7 +68,7 @@ fi
 echo '检测ISO依赖成功！！'
 
 
-echoLineSeparator 1 '检测依赖通过，准备挂载系统iso镜像文件，安装expect 和httpd '
+consoleLog '检测依赖通过，准备挂载系统iso镜像文件，安装expect 和httpd '
 
  mount_iso_file=`ls $currDir/res/CentOS-$os*.iso` 
  if [ -e /mnt/cdrom -a -d /mnt/cdrom ]
@@ -131,7 +131,7 @@ echoLineSeparator 1 '检测依赖通过，准备挂载系统iso镜像文件，�
    fi
  fi
  
-echoLineSeparator 1 '挂载镜像成功，准备配置当前节点yum源'
+consoleLog '挂载镜像成功，准备配置当前节点yum源'
 
 echo '移除 /etc/yum.repos.d文件夹下的所有repo文件'
 rm -f /etc/yum.repos.d/*.repo
@@ -154,7 +154,7 @@ then
 fi
 
  
-   echoLineSeparator 1 '检测是否安装expect，如果没安装则自动安装'
+   consoleLog '检测是否安装expect，如果没安装则自动安装'
    expDep=`rpm -qa|grep expect`
    if [ "" == "$expDep" ] ;then
      echo 'Dependency Check ,current host has not installed [expect]'
@@ -164,7 +164,7 @@ fi
        exit 1
      fi
    fi
-   echoLineSeparator 1 '检测是否安装http ,如果没有安装则自动安装'
+   consoleLog '检测是否安装http ,如果没有安装则自动安装'
    httpdDep=`rpm -qa|grep -v 'httpd-tools' |grep httpd`
     if [ "" == "$httpdDep" ] ;then
      echo 'Dependency Check ,current host has not installed [httpd]'
@@ -175,9 +175,9 @@ fi
      fi
      chkconfig httpd on    
    fi
-   echoLineSeparator 1 '必要依赖工具安装成功!!'
+   consoleLog '必要依赖工具安装成功!!'
  
-   echoLineSeparator 1 '在/var/www/html中创建资源文件夹'
+   consoleLog '在/var/www/html中创建资源文件夹'
   
     httpHome=/var/www/html
     subDirArray=('cdrom')
@@ -205,7 +205,7 @@ fi
     service httpd restart
     chkconfig httpd on
 #打印一行分隔符
-echoLineSeparator 1 '开始进行hostname配置，请不要手动打断！'
+consoleLog '开始进行hostname配置，请不要手动打断！'
 #所有的节点ip
 total_ips=`awk '{print $1}' $ip_file`
 #当前所在节点ip
@@ -217,8 +217,8 @@ allHostNames=`awk '{print $2}' $ip_file`
 #配置所有节点的hostname
     for i in $total_ips
     do 
-       tmpHs=`getHostNameByIP $ip_file $i`
-       psw=`getRootPSWByIP $ip_file $i`
+       tmpHs=`getHostNameByIP $i`
+       psw=`getRootPasswordByIP $i`
        if [ $tmpHs == "" ]
        then
          echo "can not set empty hostname to $i"
@@ -241,12 +241,12 @@ allHostNames=`awk '{print $2}' $ip_file`
       
     done    
 #打印一行分隔符
-echoLineSeparator 1 '完成hostname配置，即将进行下一步！'
-echoLineSeparator 1 '修改每个节点系统内核参数'
+consoleLog '完成hostname配置，即将进行下一步！'
+consoleLog '修改每个节点系统内核参数'
 for i in $total_ips
 do
  
-    psw=`getRootPSWByIP $ip_file $i`
+    psw=`getRootPasswordByIP $i`
     if [ "6" == "$os" ]
        then
           #修改内核参数
@@ -276,7 +276,7 @@ for i in $other_ips
 do
   if [ "$mip" != "$i" ] ;then
     echo "ssh $i 'reboot now'"
-    psw=`getRootPSWByIP $ip_file $i`
+    psw=`getRootPasswordByIP $i`
     $currDir/expect_ssh.exp root $i  "reboot now"  $psw
           
   fi
